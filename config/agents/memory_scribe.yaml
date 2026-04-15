@@ -1,0 +1,16 @@
+name: "memory_scribe"
+trigger_patterns:
+  - "^remember.*"
+  - "^save.*"
+  - "^store.*"
+  - "^update.*memory"
+  - "^task_complete"      # auto-triggered on task completion
+system_prompt_path: "prompts/memory_scribe.txt"
+max_tokens: 1500
+allowed_tools:
+  - "graph_read"         # read graph state
+  - "graph_write"        # write to graph (atomic)
+  - "vector_store"       # embeddings, semantic search
+  - "vector_write"       # write embeddings
+handoff_to: null         # terminal agent — no handoff
+description: "Dedicated agent for all read/write operations to User Graph and session memory. Ensures atomic writes and consistent graph state. Executes the 6-step update protocol."

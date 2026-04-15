@@ -1,0 +1,14 @@
+name: "planner"
+trigger_patterns:
+  - "^plan.*"
+  - "^design.*"
+  - "^architect.*"
+  - "^break down.*"
+  - "^decompose.*"
+system_prompt_path: "prompts/planner.txt"
+max_tokens: 3000
+allowed_tools:
+  - "file_system"      # read only (file tree listing)
+  - "memory_read"       # read user graph
+handoff_to: "coder"
+description: "Decomposes complex tasks into ordered DAG of sub-tasks with estimated token budgets. Pure planning logic — never generates code."

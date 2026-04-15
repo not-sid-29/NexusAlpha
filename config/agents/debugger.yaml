@@ -1,0 +1,16 @@
+name: "debugger"
+trigger_patterns:
+  - "^debug.*"
+  - "^fix.*error"
+  - "^fix.*bug"
+  - "^trace.*"
+  - "^error.*"
+system_prompt_path: "prompts/debugger.txt"
+max_tokens: 3500
+allowed_tools:
+  - "file_system"      # read (scoped) and write (via FSM)
+  - "executor"          # run tests, check errors (sandboxed)
+  - "lsp_client"        # lint, references
+  - "memory_read"       # read error dictionary
+handoff_to: "coder"     # after fix, back to coder for regen
+description: "Receives error traces and failing test output. Hypothesises causes, generates targeted fixes. Uses execution history to avoid repeating bad patterns."

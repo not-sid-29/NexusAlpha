@@ -1,0 +1,14 @@
+name: "reviewer"
+trigger_patterns:
+  - "^review.*"
+  - "^check.*code"
+  - "^analyze.*code"
+  - "^validate.*"
+system_prompt_path: "prompts/reviewer.txt"
+max_tokens: 3500
+allowed_tools:
+  - "file_system"      # read only (scoped)
+  - "lsp_client"        # lint, hover, references
+  - "memory_read"       # read correction patterns
+handoff_to: "coder"     # if rejected, back to coder
+description: "Static + semantic review of Coder output. Checks style, correctness, complexity, user graph pattern alignment. Returns structured diff proposal or approval."

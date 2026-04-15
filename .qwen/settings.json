@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/extensions *)",
+      "Bash(.\\nxsvenv\\scripts\\python.exe *)",
+      "Bash(mkdir *)"
+    ]
+  },
+  "$version": 3
+}

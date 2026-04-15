@@ -1,0 +1,63 @@
+# NexusAlpha — System Configuration
+# Format: TOML
+
+[system]
+name = "NexusAlpha"
+version = "0.1.0"
+log_level = "INFO"           # DEBUG, INFO, WARN, ERROR, CRITICAL
+log_format = "structured"    # structured (JSON) or human
+
+[model]
+primary = "qwen2.5-coder-32b-instruct"
+micro_task = "qwen2.5-coder-7b-instruct"
+provider = "openrouter"
+api_key_env = "OPENROUTER_API_KEY"
+streaming = true
+early_stop = true
+retry_limit = 2
+fallback_chain = ["qwen2.5-coder-32b-instruct", "qwen2.5-coder-7b-instruct"]
+
+[token]
+max_budget_per_session = 50000
+warning_thresholds = [60, 80, 95]  # percentages
+system_persona = 300
+user_graph_summary = 500
+compressed_history = 1200
+tool_results = 800
+task_instruction = 400
+
+[context]
+max_window_usage = 0.8         # never exceed 80% of model context limit
+eviction_p2_threshold = 0.85   # P2 retained until 85% usage
+eviction_p3_threshold = 0.70   # P3 retained until 70% usage
+eviction_p4_threshold = 0.60   # P4 summarised at 60% usage
+
+[memory]
+graph_store = "sqlite"
+graph_path = "data/memory/nexus_graph.db"
+vector_store = "chromadb"       # or "faiss"
+vector_path = "data/memory/nexus_vectors"
+embedding_model = "nomic-embed-text"
+embedding_provider = "ollama"   # local, zero token spend
+stale_node_days = 90
+
+[security]
+allowed_paths = ["src/", "tests/", "docs/"]    # filesystem scope
+max_file_read_bytes = 50000                    # per-read limit
+sandbox_cpu_limit = 2                          # max cores for executor
+sandbox_memory_limit_mb = 512                  # max memory for executor
+sandbox_timeout_seconds = 30                   # max execution time
+network_isolation = true                       # no outbound from sandbox
+
+[api]
+host = "127.0.0.1"
+port = 8000
+cors_origins = ["http://localhost:3000"]
+
+[tui]
+enabled = true
+theme = "dark"
+refresh_rate_ms = 100
+
+[agents]
+config_dir = "config/agents"    # auto-discovery from this directory

@@ -1,0 +1,15 @@
+name: "coder"
+trigger_patterns:
+  - "^write.*"
+  - "^generate.*"
+  - "^implement.*"
+  - "^create.*function"
+  - "^add.*code"
+system_prompt_path: "prompts/coder.txt"
+max_tokens: 4000
+allowed_tools:
+  - "file_system"      # read (scoped) and write (via FSM, diff-based)
+  - "lsp_client"        # hover, definition, references
+  - "memory_read"       # read user graph (coding style)
+handoff_to: "reviewer"
+description: "Generates code within scoped context: relevant file(s), plan slice, user graph style. Outputs syntactically valid, linted code only."

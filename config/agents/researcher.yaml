@@ -1,0 +1,14 @@
+name: "researcher"
+trigger_patterns:
+  - "^research.*"
+  - "^look up.*"
+  - "^find.*documentation"
+  - "^what is.*"
+  - "^explain.*"
+system_prompt_path: "prompts/researcher.txt"
+max_tokens: 2500
+allowed_tools:
+  - "web_search"        # documentation lookup
+  - "memory_read"       # read prior research sessions
+handoff_to: "coder"     # feeds structured summary to coder
+description: "Handles information-gathering: documentation lookup, dependency analysis, API surface exploration. Feeds structured summaries back to Coder. Never writes code."

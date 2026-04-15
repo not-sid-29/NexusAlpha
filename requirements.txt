@@ -1,0 +1,27 @@
+# Nexus Project Dependencies
+#
+# This file lists the required packages for running the Nexus application.
+# To install, run: pip install -r requirements.txt
+
+# --- Core Application ---
+fastapi
+uvicorn[standard]  # ASGI server for FastAPI with performance extras
+pydantic>=2.0,<3.0 # For data validation and schemas (v2 is required)
+aiosqlite          # Async SQLite driver
+networkx           # For graph data structures in memory
+
+# --- Intelligence & Memory ---
+chromadb           # Vector store for semantic memory
+openrouter-client  # Client for Qwen models via OpenRouter
+ollama             # Client for local embedding models
+
+# --- Configuration & Utilities ---
+PyYAML             # For parsing agent .yaml configuration files
+toml               # For parsing system .toml configuration
+python-dotenv      # For loading secrets from .env files
+rich               # For the rich Terminal User Interface (TUI)
+
+# --- Development & Testing (install with 'pip install -r requirements.txt') ---
+pytest
+pytest-asyncio
+pytest-cov
