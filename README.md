@@ -1,9 +1,9 @@
 # 🌌 Nexus Alpha (v0.1)
 > **The Deterministic State Engine for Autonomous Coding Agents.**
 
-![Nexus Alpha Hero](nexus_alpha_hero_banner.png)
+![Nexus Alpha Hero](nexus_alpha_premium_banner.png)
 
-Nexus Alpha is a production-grade orchestration harness designed to transform experimental AI agents into reliable, production-safe cognitive systems. It enforces strict session lifecycles, multi-tenant isolation, and a zero-trust security model.
+Nexus Alpha is a **production-hardened** orchestration harness designed to transform experimental AI agents into reliable, production-safe cognitive systems. It enforces strict session lifecycles, multi-tenant isolation, and a zero-trust security model.
 
 ---
 
@@ -18,9 +18,16 @@ Nexus Alpha operates on a strictly isolated 5-layer design to ensure zero data-b
 
 ## 🚀 Key Features
 *   **🛡️ Production-Safe Guards**: Real-time redaction of API keys and protection against path traversal.
+*   **⚡ SOTA-Grade Autonomy**: Designed to match and surpass benchmarks set by industry leaders like **Claude Code**, ensuring maximum task completion rates.
 *   **🔄 Self-Healing Loops**: Integrated Refine-and-Retry cycles with automatic escalation to interactive mode on failure.
 *   **🧵 Multi-Tenant Isolation**: Cryptographic session scoping ensuring zero data leakage between client traces.
 *   **📊 Token Ledger**: Fine-grained monitoring of token consumption and budget enforcement.
+
+## 📈 Performance Engineering: The Claude Benchmark
+Nexus Alpha is engineered to align with the highest tiers of autonomous coding performance. By prioritizing a **deterministic state engine** over pure stochastic generation, we achieve:
+- **Systemic Reliability**: Reduced hallucination rates through pre-validated state transitions.
+- **Traceable Reasoning**: Every cognitive step is logged and verifiable via the TOON message bus.
+- **Superior Security**: Unlike standard CLI agents, Nexus operates within a rigid permission matrix and sandboxed execution planes.
 
 ## 🛠️ Getting Started
 
@@ -58,6 +65,7 @@ Nexus Alpha is backed by a rigorous suite of **35+ production tests** covering:
 ## 📖 Documentation
 Detailed technical documentation can be found in the `/documentation` directory:
 *   [System Architecture](documentation/SYSTEM_ARCHITECTURE.md)
+*   [Project Blueprint](documentation/ARCHITECTURE_BLUEPRINT.md)
 *   [Implementation Journey](documentation/journal/IMPLEMENTATION_JOURNEY.md)
 *   [Product Requirements (PRD)](documentation/NexusPRD.md)
 
