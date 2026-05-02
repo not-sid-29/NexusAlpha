@@ -8,7 +8,11 @@ fastapi
 uvicorn[standard]  # ASGI server for FastAPI with performance extras
 pydantic>=2.0,<3.0 # For data validation and schemas (v2 is required)
 aiosqlite          # Async SQLite driver
+psycopg[binary,pool]     # Psycopg 3 Postgres/Supabase driver
 networkx           # For graph data structures in memory
+alembic            # For versioned db migrations
+SQLAlchemy>=2.0,<3.0 # ORM and DB interactions
+
 
 # --- Intelligence & Memory ---
 chromadb           # Vector store for semantic memory

@@ -11,17 +11,39 @@ import logging
 import uuid
 from typing import Dict, Set
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from schemas.messages import TOONMessage
 from bus.dispatcher import AsyncDispatcher
 from core.engine import NexusEngine
 from core.state_machine import AutonomyMode
+from agents.planner import PlannerAgent
+from agents.coder import CoderAgent
+from agents.debugger import DebuggerAgent
+from memory.db_manager import DatabaseManager
+from memory.scribe import MemoryScribe
+from memory.vector_store import VectorStore
+
+load_dotenv(dotenv_path=".env", override=True)
+
+# Configure logging early
+logging.getLogger("nexus").setLevel(logging.INFO)
+h = logging.StreamHandler()
+h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+if not logging.getLogger("nexus").handlers:
+    logging.getLogger("nexus").addHandler(h)
 
 logger = logging.getLogger("nexus.api")
 
 app = FastAPI(title="NexusAlpha Engine HTTP/WS API", version="0.1.0")
 nexus_dispatcher = AsyncDispatcher()
-nexus_engine = NexusEngine(nexus_dispatcher)
+nexus_db = DatabaseManager.from_env()
+nexus_vector_store = VectorStore()
+nexus_memory_scribe = MemoryScribe(nexus_dispatcher, nexus_db, nexus_vector_store)
+nexus_engine = NexusEngine(nexus_dispatcher, db_manager=nexus_db)
+nexus_planner = PlannerAgent(nexus_dispatcher)
+nexus_coder = CoderAgent(nexus_dispatcher)
+nexus_debugger = DebuggerAgent(nexus_dispatcher)
 
 
 class TenantConnectionManager:
@@ -65,57 +87,78 @@ class TenantConnectionManager:
     async def send_to_trace_owner(self, message: TOONMessage):
         """
         Send a TOON message ONLY to the client that owns the trace_id.
-        If no client owns it (e.g. disconnected), buffer for reconnect.
         """
         trace_id = message.trace_id
         client_id = self._trace_to_client.get(trace_id)
 
         if not client_id or client_id not in self._connections:
-            # Client disconnected mid-task — buffer the result on the session
-            session = nexus_engine.registry.get_session(trace_id)
-            if session:
-                session.buffered_result = message.model_dump(mode="json")
-            logger.warning(
-                f"[WS] No active client for trace {trace_id}. Result buffered."
-            )
             return
 
         ws = self._connections[client_id]
         try:
-            await ws.send_text(message.model_dump_json())
+            # Check for usage metrics in payload
+            usage = message.payload.get("usage")
+            if usage:
+                # Add usage to the outbound WS message
+                data = message.model_dump(mode="json")
+                data["type"] = "usage_update"
+                await ws.send_text(json.dumps(data))
+            else:
+                await ws.send_text(message.model_dump_json())
         except Exception as e:
             logger.error(f"[WS] Failed to send to {client_id}: {e}")
             await self.disconnect(client_id)
 
 
+    async def send_raw_to_trace_owner(self, trace_id: str, data: dict):
+        """Send a raw dictionary to the client owning the trace_id."""
+        client_id = self._trace_to_client.get(trace_id)
+        if not client_id or client_id not in self._connections:
+            return
+        ws = self._connections[client_id]
+        try:
+            await ws.send_text(json.dumps(data))
+        except Exception as e:
+            logger.error(f"[WS] Failed to send raw data to {client_id}: {e}")
+
 manager = TenantConnectionManager()
 
+async def _engine_event_bridge(trace_id: str, data: dict):
+    """Bridge Engine events (state changes/results) to WebSocket client."""
+    await manager.send_raw_to_trace_owner(trace_id, data)
+
+nexus_engine.event_callback = _engine_event_bridge
 
 def _dispatcher_flush(message: TOONMessage):
     """Sync callback bridging to async WS send (scoped, not broadcast)."""
     asyncio.create_task(manager.send_to_trace_owner(message))
 
-
 nexus_dispatcher.external_stream_callback = _dispatcher_flush
-
 
 @app.on_event("startup")
 async def startup():
+    await nexus_memory_scribe.start()
     await nexus_engine.start()
+    await nexus_planner.start()
+    await nexus_coder.start()
+    await nexus_debugger.start()
 
 
 @app.on_event("shutdown")
 async def shutdown():
+    await nexus_memory_scribe.stop()
     await nexus_engine.shutdown()
     await nexus_dispatcher.shutdown()
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    logger.info("[WS] New connection attempt...")
     client_id = await manager.connect(websocket)
     try:
         while True:
             raw = await websocket.receive_text()
+            logger.debug(f"[WS] Received from {client_id}: {raw[:100]}...")
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
@@ -124,31 +167,35 @@ async def websocket_endpoint(websocket: WebSocket):
 
             action = data.get("action", "submit")
 
-            if action == "submit":
-                prompt = data.get("prompt", "")
-                mode_str = data.get("mode", "INTERACTIVE").upper()
-                mode = AutonomyMode(mode_str) if mode_str in AutonomyMode.__members__ else AutonomyMode.INTERACTIVE
+            try:
+                if action == "submit":
+                    prompt = data.get("prompt", "")
+                    mode_str = data.get("mode", "INTERACTIVE").upper()
+                    mode = AutonomyMode(mode_str) if mode_str in AutonomyMode.__members__ else AutonomyMode.INTERACTIVE
 
-                trace_id = await nexus_engine.submit_user_prompt(
-                    user_prompt=prompt,
-                    autonomy_mode=mode,
-                    client_id=client_id,
-                )
-                manager.register_trace(client_id, trace_id)
-                await websocket.send_text(json.dumps({
-                    "event": "session_created",
-                    "trace_id": trace_id,
-                    "mode": mode.value,
-                }))
+                    trace_id = await nexus_engine.submit_user_prompt(
+                        user_prompt=prompt,
+                        autonomy_mode=mode,
+                        client_id=client_id,
+                    )
+                    manager.register_trace(client_id, trace_id)
+                    await websocket.send_text(json.dumps({
+                        "event": "session_created",
+                        "trace_id": trace_id,
+                        "mode": mode.value,
+                    }))
 
-            elif action == "approve":
-                trace_id = data.get("trace_id", "")
-                await nexus_engine.approve_session(trace_id)
+                elif action == "approve":
+                    trace_id = data.get("trace_id", "")
+                    await nexus_engine.approve_session(trace_id)
 
-            elif action == "reject":
-                trace_id = data.get("trace_id", "")
-                feedback = data.get("feedback", "")
-                await nexus_engine.reject_session(trace_id, feedback)
+                elif action == "reject":
+                    trace_id = data.get("trace_id", "")
+                    feedback = data.get("feedback", "")
+                    await nexus_engine.reject_session(trace_id, feedback)
+            except Exception as e:
+                logger.error(f"[WS_CRASH] Action {action} failed: {e}", exc_info=True)
+                await websocket.send_text(json.dumps({"event": "error", "message": str(e)}))
 
     except WebSocketDisconnect:
         await manager.disconnect(client_id)

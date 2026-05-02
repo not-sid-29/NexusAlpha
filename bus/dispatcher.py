@@ -49,6 +49,22 @@ class DeadLetterQueue:
         return items
 
 
+class QueueSubscription:
+    """Queue handle that also tolerates legacy `await subscribe(...)` callers."""
+
+    def __init__(self, queue: asyncio.Queue):
+        self._queue = queue
+
+    def __await__(self):
+        async def _return_queue():
+            return self._queue
+
+        return _return_queue().__await__()
+
+    def __getattr__(self, name: str):
+        return getattr(self._queue, name)
+
+
 class AsyncDispatcher:
     """
     Central Pub/Sub Async Message Queue with production safety:
@@ -70,11 +86,37 @@ class AsyncDispatcher:
     def dlq(self) -> DeadLetterQueue:
         return self._dlq
 
-    def subscribe(self, subscriber_id: str) -> asyncio.Queue:
-        """Create or return a bounded queue for the subscriber."""
+    def subscribe(self, subscriber_id: str, callback: Optional[Callable] = None):
+        """
+        Subscribes to the bus.
+
+        If callback is provided, automatically spawns a background consumer task.
+        If omitted, returns the subscriber queue for older queue-driven callers.
+        """
         if subscriber_id not in self._queues:
             self._queues[subscriber_id] = asyncio.Queue(maxsize=self._queue_max_size)
-        return self._queues[subscriber_id]
+
+        if callback is None:
+            return QueueSubscription(self._queues[subscriber_id])
+        
+        # Start a background worker for this subscriber
+        asyncio.create_task(self._subscriber_worker(subscriber_id, callback))
+        logger.info(f"[BUS] Active subscription started for: {subscriber_id}")
+        return QueueSubscription(self._queues[subscriber_id])
+
+    async def _subscriber_worker(self, subscriber_id: str, callback: Callable):
+        """Internal worker that drains the queue and triggers the callback."""
+        logger.info(f"[BUS] Worker started for {subscriber_id}")
+        queue = self._queues[subscriber_id]
+        while not self._shutting_down:
+            try:
+                message = await queue.get()
+                await callback(message)
+                queue.task_done()
+            except Exception as e:
+                logger.error(f"[BUS] Error in {subscriber_id} callback: {e}")
+            except asyncio.CancelledError:
+                break
 
     async def publish(self, message: TOONMessage):
         """
